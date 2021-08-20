@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Query, Path, Body
 from typing import Optional, List, Set
 
-from pydantic import BaseModel, Field,HttpUrl
+from pydantic import BaseModel, Field, HttpUrl
 
 app = FastAPI()
 
@@ -25,9 +25,6 @@ class Item(BaseModel):
 class User(BaseModel):
     user_name: str
     role: bool
-
-
-
 
 
 @app.get("/")
