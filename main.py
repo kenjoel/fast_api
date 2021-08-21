@@ -1,5 +1,7 @@
+import ssl
+
 from fastapi import FastAPI, Query, Path, Body
-from typing import Optional, List, Set
+from typing import Optional, List, Set, Dict
 
 from pydantic import BaseModel, Field, HttpUrl
 
@@ -19,12 +21,25 @@ class Item(BaseModel):
     availability = bool
     tags: List[str] = []
     taps: Set[str] = set()
-    image: Optional[Image] = None
+    # exp: Dict[str] = {}
+    image: Optional[List[Image]] = None
 
 
 class User(BaseModel):
     user_name: str
     role: bool
+
+
+class Offer(BaseModel):
+    name: str
+    description: Optional[str] = None
+    price: float
+    items: List[Item]
+
+
+@app.post("/offers/")
+async def post_items_on_offer(offer: Offer):
+    return offer
 
 
 @app.get("/")
@@ -93,3 +108,38 @@ async def update_item(
     if q:
         results.update({"q": q})
     return results
+
+
+@app.post("/images/multiple/")
+async def create_multiple_images(images: List[Image]):
+    return images
+
+
+@app.post("/index-weights/")
+async def create_index_weights(weights: Dict[int, float]):
+    return weights
+
+
+'''
+#Start Here
+https://pydantic-docs.helpmanual.io/usage/schema/#schema-customization
+'''
+
+
+# You can declare and example of Pydantic model using Config and Schema_extra
+
+class Kitenge(BaseModel):
+    name: str
+    desc: str
+    price: float
+    tax: Optional[float]
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "name": "Foo",
+                "description": "A very nice Item",
+                "price": 35.4,
+                "tax": 3.2,
+            }
+        }
