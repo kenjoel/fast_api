@@ -1,11 +1,36 @@
 import ssl
 
-from fastapi import FastAPI, Query, Path, Body
+from fastapi import FastAPI, Query, Path, Body, Cookie, Header
 from typing import Optional, List, Set, Dict
-
-from pydantic import BaseModel, Field, HttpUrl
+from uuid import UUID
+from datetime import datetime, time, timedelta
+from pydantic import BaseModel, Field, HttpUrl, EmailStr
 
 app = FastAPI()
+
+
+class UserIn(BaseModel):
+    username: str
+    password: str
+    email: EmailStr
+    full_name: Optional[str] = None
+
+
+class Kitenge(BaseModel):
+    name: str
+    desc: str
+    price: float
+    tax: Optional[float]
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "name": "Foo",
+                "description": "A very nice Item",
+                "price": 35.4,
+                "tax": 3.2,
+            }
+        }
 
 
 class Image(BaseModel):
@@ -61,9 +86,9 @@ async def create_item(item: Item):
     return item
 
 
-@app.put("update/{item_id}")
-def update_item(item_id: int, item: Item):
-    return {"item_id": item_id, "Item": Item.dict()}
+# @app.put("update/{item_id}")
+# def update_item(item_id: int, item: Item):
+#     return {"item_id": item_id, "Item": Item.dict()}
 
 
 @app.get("/items/")
@@ -95,19 +120,19 @@ async def update_user(item_id: int, user: User, item: Item):
     return results
 
 
-@app.put("/items/{item_id}")
-async def update_item(
-        *,
-        item_id: int,
-        item: Item,
-        user: User,
-        importance: int = Body(..., gt=0),
-        q: Optional[str] = None
-):
-    results = {"item_id": item_id, "item": item, "user": user, "importance": importance}
-    if q:
-        results.update({"q": q})
-    return results
+# @app.put("/items/{item_id}")
+# async def update_item(
+#         *,
+#         item_id: int,
+#         item: Item,
+#         user: User,
+#         importance: int = Body(..., gt=0),
+#         q: Optional[str] = None
+# ):
+#     results = {"item_id": item_id, "item": item, "user": user, "importance": importance}
+#     if q:
+#         results.update({"q": q})
+#     return results
 
 
 @app.post("/images/multiple/")
@@ -128,18 +153,91 @@ https://pydantic-docs.helpmanual.io/usage/schema/#schema-customization
 
 # You can declare and example of Pydantic model using Config and Schema_extra
 
-class Kitenge(BaseModel):
-    name: str
-    desc: str
-    price: float
-    tax: Optional[float]
 
-    class Config:
-        schema_extra = {
-            "example": {
-                "name": "Foo",
-                "description": "A very nice Item",
-                "price": 35.4,
-                "tax": 3.2,
-            }
-        }
+# Adding examples of the type of onbject to expect is indisensable to smooth structure
+@app.put("/items/{item_id}")
+async def update_item(
+        *,
+        item_id: int,
+        item: Item = Body(
+            ...,
+            examples={
+                "normal": {
+                    "summary": "A normal example",
+                    "description": "A **normal** item works correctly.",
+                    "value": {
+                        "name": "Foo",
+                        "description": "A very nice Item",
+                        "price": 35.4,
+                        "tax": 3.2,
+                    },
+                },
+                "converted": {
+                    "summary": "An example with converted data",
+                    "description": "FastAPI can convert price `strings` to actual `numbers` automatically",
+                    "value": {
+                        "name": "Bar",
+                        "price": "35.4",
+                    },
+                },
+                "invalid": {
+                    "summary": "Invalid data is rejected with an error",
+                    "value": {
+                        "name": "Baz",
+                        "price": "thirty five point four",
+                    },
+                },
+            },
+        ),
+):
+    results = {"item_id": item_id, "item": item}
+    return results
+
+
+@app.put("/items/{item_id}")
+async def read_items(
+        item_id: UUID,
+        start_datetime: Optional[datetime] = Body(None),
+        end_datetime: Optional[datetime] = Body(None),
+        repeat_at: Optional[time] = Body(None),
+        process_after: Optional[timedelta] = Body(None),
+):
+    start_process = start_datetime + process_after
+    duration = end_datetime - start_process
+    return {
+        "item_id": item_id,
+        "start_datetime": start_datetime,
+        "end_datetime": end_datetime,
+        "repeat_at": repeat_at,
+        "process_after": process_after,
+        "start_process": start_process,
+        "duration": duration,
+    }
+
+
+@app.get("/items/")
+async def read_items(ads_id: Optional[str] = Cookie(None)):
+    return {"ads_id": ads_id}
+
+
+@app.get("/items/")
+async def read_items(user_agent: Optional[str] = Header(None)):
+    return {"User-Agent": user_agent}
+
+
+# Convert Header Underscores
+@app.put("kilio/shit")
+async def hurt(user_agent: Optional[str] = Header(None, convert_underscores=False)):
+    return {"user_agent": user_agent}
+
+
+# Response Model
+@app.post("/items/stemmed", response_model=Item)
+async def create_item(item: Item):
+    return item
+
+
+# Don't do this in production!
+@app.post("/user/", response_model=UserIn)
+async def create_user(user: UserIn):
+    return user
