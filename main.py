@@ -9,11 +9,22 @@ from pydantic import BaseModel, Field, HttpUrl, EmailStr
 app = FastAPI()
 
 
-class UserIn(BaseModel):
+class user_base_model(BaseModel):
     username: str
-    password: str
-    email: EmailStr
+    email: str
     full_name: Optional[str] = None
+
+
+class UserIn(user_base_model):
+    password: str
+
+
+class UserOut(user_base_model):
+    pass
+
+
+class UserInDB(user_base_model):
+    hashed_password: str
 
 
 class Kitenge(BaseModel):
@@ -60,6 +71,9 @@ class Offer(BaseModel):
     description: Optional[str] = None
     price: float
     items: List[Item]
+
+
+
 
 
 @app.post("/offers/")
@@ -238,6 +252,36 @@ async def create_item(item: Item):
 
 
 # Don't do this in production!
-@app.post("/user/", response_model=UserIn)
-async def create_user(user: UserIn):
+items = {
+    "foo": {"name": "Password", "password": "kitenge", "email": "myemail@gmail.com", "full_name": "Password Kitenge"},
+    "ntoa": {"name": "Nyoa", "password": "kitenge", "email": "nyemail@gmail.com", "full_name": "Nyoa Kitenge"},
+    "nyoa": {"name": "Ntoa", "password": "kitenge", "email": "nemail@gmail.com", "full_name": "Ntoa Kitenge"},
+}
+
+
+@app.post("/pressure/", response_model=UserIn)
+async def create_users(user: UserIn):
     return user
+
+
+@app.post("/user/", response_model=UserOut, response_model_exclude_unset=True)
+async def create_kwangu(user: UserIn):
+    return user
+
+
+def lets_hash_user(rawstring: str):
+    return "I will use a cryptographic algorithm" + rawstring
+
+
+def lets_get_user_data(user_in: UserIn):
+    hashed_password = lets_hash_user(user_in.password)
+    user_in_db = UserInDB(**user_in.dict(), hashed_password=hashed_password)
+    return user_in_db
+
+
+@app.post("/create_user")
+def created_user(usr: UserIn):
+    user_to_save = lets_get_user_data(usr)
+    # Save user to Database
+    print("Success")
+    return user_to_save
