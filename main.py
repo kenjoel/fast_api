@@ -1,6 +1,6 @@
 import ssl
 
-from fastapi import FastAPI, Query, Path, Body, Cookie, Header
+from fastapi import FastAPI, Query, Path, Body, Cookie, Header, Form
 from typing import Optional, List, Set, Dict
 from uuid import UUID
 from datetime import datetime, time, timedelta
@@ -71,9 +71,6 @@ class Offer(BaseModel):
     description: Optional[str] = None
     price: float
     items: List[Item]
-
-
-
 
 
 @app.post("/offers/")
@@ -258,6 +255,15 @@ items = {
     "nyoa": {"name": "Ntoa", "password": "kitenge", "email": "nemail@gmail.com", "full_name": "Ntoa Kitenge"},
 }
 
+'''
+The Idea is that you can return a response model of a list of objects
+'''
+
+
+# @app.get("/beautiful/", response_model=List[Item])
+# async def read_items():
+#     return items
+
 
 @app.post("/pressure/", response_model=UserIn)
 async def create_users(user: UserIn):
@@ -285,3 +291,8 @@ def created_user(usr: UserIn):
     # Save user to Database
     print("Success")
     return user_to_save
+
+
+@app.post("/login")
+def expect_form_data(username: Form(..., media_type="application/x-www-form-urlencoded"), password: Form(..., media_type="application/x-www-form-urlencoded")):
+    return {"Username": username}
