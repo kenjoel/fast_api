@@ -1,10 +1,10 @@
-import ssl
-
-from fastapi import FastAPI, Query, Path, Body, Cookie, Header, Form
+from fastapi import FastAPI, Query, Path, Body, Cookie, Header, Form, File, UploadFile, HTTPException, Request
 from typing import Optional, List, Set, Dict
 from uuid import UUID
 from datetime import datetime, time, timedelta
 from pydantic import BaseModel, Field, HttpUrl, EmailStr
+from fastapi.responses import HTMLResponse, JSONResponse
+
 
 app = FastAPI()
 
@@ -294,5 +294,112 @@ def created_user(usr: UserIn):
 
 
 @app.post("/login")
-def expect_form_data(username: Form(..., media_type="application/x-www-form-urlencoded"), password: Form(..., media_type="application/x-www-form-urlencoded")):
+def expect_form_data(username: str = Form(..., media_type="application/x-www-form-urlencoded"),
+                     password: str = Form(..., media_type="application/x-www-form-urlencoded")):
     return {"Username": username}
+
+
+'''
+ALL ABOUT FILE UPLOAD 
+'''
+
+
+@app.post("/files/")
+def getFileBytes(file: bytes = File(...)):
+    return {"file_size": len(file)}
+
+
+@app.post("/uploadFile/")
+def upload_file(file: UploadFile = File(...)):
+    return {"file": file.filename}
+
+
+@app.post("/uploadbyteslist")
+def upload_bytes_list(files: List[bytes] = File(...)):
+    return {"Your Shit": [len(file) for file in files]}
+
+
+@app.post("/upload_files")
+def upload_files(files: List[UploadFile] = File(...)):
+    return {"filenames": [file.filename for file in files]}
+
+
+@app.get("/mtaa")
+async def main():
+    content = """
+<body>
+<form action="/uploadbyteslist/" enctype="multipart/form-data" method="post">
+<input name="files" type="file" multiple>
+<input type="submit">
+</form>
+<form action="/upload_files/" enctype="multipart/form-data" method="post">
+<input name="files" type="file" multiple>
+<input type="submit">
+</form>
+</body>
+    """
+    return HTMLResponse(content=content)
+
+
+@app.post("/file&form/")
+async def creator_of_files(
+        file: bytes = File(...), fileb: UploadFile = File(...), token: str = Form(...)
+):
+    return {
+        "file_size": len(file),
+        "token": token,
+        "fileb_content_type": fileb.content_type,
+    }
+
+
+'''ENDS HERE'''
+
+'''
+ALL ABOUT ERROR HANDLING
+'''
+
+
+@app.get("/arap/{item_id}")
+async def read_item(item_id: str):
+    if item_id not in items:
+        raise HTTPException(status_code=404, detail="Item not found")
+    return {"item": items[item_id]}
+
+
+stuff = {"foo": "The Foo Wrestlers"}
+
+
+@app.get("/items-header/{item_id}")
+async def read_item_header(item_id: str):
+    if item_id not in stuff:
+        raise HTTPException(
+            status_code=404,
+            detail="Item not found",
+            headers={"X-Error": "There goes my error"},
+        )
+    return {"item": stuff[item_id]}
+
+
+class UnicornException(Exception):
+    def __init__(self, name: str):
+        self.name = name
+
+
+app = FastAPI()
+
+
+@app.exception_handler(UnicornException)
+async def unicorn_exception_handler(request: Request, exc: UnicornException):
+    return JSONResponse(
+        status_code=418,
+        content={"message": f"Oops! {exc.name} did something. There goes a rainbow..."},
+    )
+
+
+@app.get("/unicorns/{name}")
+async def read_unicorn(name: str):
+    if name == "yolo":
+        raise UnicornException(name=name)
+    return {"unicorn_name": name}
+
+'''ENDS HERE'''
