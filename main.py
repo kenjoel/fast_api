@@ -1,12 +1,23 @@
-from fastapi import FastAPI, Query, Path, Body, Cookie, Header, Form, File, UploadFile, HTTPException, Request
+from fastapi import FastAPI, Query, Path, Body, Cookie, Header, Form, File, UploadFile, HTTPException, Request, Depends
 from typing import Optional, List, Set, Dict
 from uuid import UUID
+
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from datetime import datetime, time, timedelta
+
+from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel, Field, HttpUrl, EmailStr
 from fastapi.responses import HTMLResponse, JSONResponse
-
+from starlette.responses import PlainTextResponse
 
 app = FastAPI()
+
+'''For Authentication'''
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+''' ENDSH HERE'''
 
 
 class user_base_model(BaseModel):
@@ -112,7 +123,7 @@ async def read_items(
     return results
 
 
-@app.get("/items/{item_id}")
+@app.get("/its/{item_id}")
 async def read_items(
         item_id: int = Path(..., title="The ID of the item to get"),
         q: Optional[str] = Query(None, alias="item-query"),
@@ -123,7 +134,7 @@ async def read_items(
     return results
 
 
-@app.put("items/{item_id}")
+@app.put("it/{item_id}")
 async def update_user(item_id: int, user: User, item: Item):
     if user.role:
         print("This is an American User")
@@ -165,8 +176,8 @@ https://pydantic-docs.helpmanual.io/usage/schema/#schema-customization
 # You can declare and example of Pydantic model using Config and Schema_extra
 
 
-# Adding examples of the type of onbject to expect is indisensable to smooth structure
-@app.put("/items/{item_id}")
+# Adding examples of the type of object to expect is indispensable to smooth structure
+@app.put("/ems/{item_id}")
 async def update_item(
         *,
         item_id: int,
@@ -205,7 +216,7 @@ async def update_item(
     return results
 
 
-@app.put("/items/{item_id}")
+@app.put("/itms/{item_id}")
 async def read_items(
         item_id: UUID,
         start_datetime: Optional[datetime] = Body(None),
@@ -226,12 +237,12 @@ async def read_items(
     }
 
 
-@app.get("/items/")
+@app.get("/i/")
 async def read_items(ads_id: Optional[str] = Cookie(None)):
     return {"ads_id": ads_id}
 
 
-@app.get("/items/")
+@app.get("/iems/")
 async def read_items(user_agent: Optional[str] = Header(None)):
     return {"User-Agent": user_agent}
 
@@ -380,12 +391,12 @@ async def read_item_header(item_id: str):
     return {"item": stuff[item_id]}
 
 
+'''Custom Headers'''
+
+
 class UnicornException(Exception):
     def __init__(self, name: str):
         self.name = name
-
-
-app = FastAPI()
 
 
 @app.exception_handler(UnicornException)
@@ -401,5 +412,169 @@ async def read_unicorn(name: str):
     if name == "yolo":
         raise UnicornException(name=name)
     return {"unicorn_name": name}
+
+
+'''Override request validation exceptions¶'''
+
+
+@app.exception_handler(RequestValidationError)
+def overrideRequestValidation(request, exc):
+    return PlainTextResponse(str(exc), status_code=400)
+
+
+@app.get("/override}")
+async def read_item(item_id: int):
+    if item_id == 3:
+        raise HTTPException(status_code=418, detail="Nope! I don't like 3.")
+    return {"item_id": item_id}
+
+
+'''ENDS HERE'''
+
+'''PATH CONFIGURATION'''
+
+
+# Deprecate a path operation
+
+
+@app.get("/elements/", tags=["items"], deprecated=True, response_description="The deprecated item",
+         )
+async def read_elements():
+    return [{"item_id": "Foo"}]
+
+
+# ENDS HERE
+''''''
+
+'''Json Encoder'''
+
+fakeDb = {}
+
+
+class Transaction_data(BaseModel):
+    name: str
+    id: int
+    time: datetime
+    transaction_description: str
+
+
+@app.post("/latest")
+def get_func(item: Transaction_data, id: str):
+    json_data = jsonable_encoder(item)
+    fakeDb[id] = json_data
+    return fakeDb
+
+
+'''Ends Here'''
+
+'''CLASSES AS DEPENDENCIES'''
+
+fake_items_db = [{"item_name": "Foo"}, {"item_name": "Bar"}, {"item_name": "Baz"}]
+
+
+class CommonQueryParams:
+    def __init__(self, q: Optional[str] = None, skip: int = 0, limit: int = 100):
+        self.q = q
+        self.skip = skip
+        self.limit = limit
+
+
+@app.get("/perp/")
+async def perusal(commons: CommonQueryParams = Depends(CommonQueryParams)):
+    response = {}
+    if commons.q:
+        response.update({"q": commons.q})
+    running = fake_items_db[commons.skip: commons.skip + commons.limit]
+    response.update({"runners": running})
+    return response
+
+
+'''ENDS HERE'''
+
+'''
+DEPENDS ON A SUB-DEPENDENCY'''
+
+
+def query_extractor(q: Optional[str] = None):
+    return q
+
+
+def query_or_cookie_extractor(
+        q: str = Depends(query_extractor), last_query: Optional[str] = Cookie(None)
+):
+    if not q:
+        return last_query
+    return q
+
+
+@app.get("/sub_dependency/")
+async def read_query(query_or_default: str = Depends(query_or_cookie_extractor)):
+    return {"q_or_cookie": query_or_default}
+
+
+'''ENDS HERE'''
+
+'''LIST OF DEPENDENCIES'''
+
+
+async def verify_token(x_token: str = Header(...)):
+    if x_token != "fake-super-secret-token":
+        raise HTTPException(status_code=400, detail="X-Token header invalid")
+
+
+async def verify_key(x_key: str = Header(...)):
+    if x_key != "fake-super-secret-key":
+        raise HTTPException(status_code=400, detail="X-Key header invalid")
+    return x_key
+
+
+@app.get("/items/", dependencies=[Depends(verify_token), Depends(verify_key)])
+async def read_items():
+    return [{"item": "Foo"}, {"item": "Bar"}]
+
+
+# BY DOING THIS:
+# app = FastAPI(dependencies=[Depends(verify_token), Depends(verify_key)])
+# You add the dependancies to the whole application
+
+
+'''ENDS HERE'''
+
+'''CONTEXT MANAGERS'''
+
+
+# these are verbs used with 'with'
+# you can create your own using FASTAPI
+
+class DBSession:
+    def close(self):
+        pass
+
+
+class MySuperContextManager:
+    def __init__(self):
+        self.db = DBSession()
+
+    def __enter__(self):
+        return self.db
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.db.close()
+
+
+async def get_db():
+    with MySuperContextManager() as db:
+        yield db
+
+
+'''ENDS HERE'''
+
+'''AUTH2 Authentication and Authorization'''
+
+
+@app.get("/authenticate")
+async def authenticate(token: str = Depends(oauth2_scheme)):
+    return {"token": token}
+
 
 '''ENDS HERE'''
