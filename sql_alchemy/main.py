@@ -1,16 +1,15 @@
 from typing import List
 
+import uvicorn
 from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy.orm import Session
 
-from . import crud, models, schema
+from . import crud, schema, models
 from .database import SessionLocal, engine
 
+app = FastAPI()
 
 models.Base.metadata.create_all(bind=engine)
-
-
-app = FastAPI()
 
 
 # Dependency
@@ -46,7 +45,7 @@ def read_user(user_id: int, db: Session = Depends(get_db)):
 
 @app.post("/users/{user_id}/items/", response_model=schema.Item)
 def create_item_for_user(
-    user_id: int, item: schema.ItemCreate, db: Session = Depends(get_db)
+        user_id: int, item: schema.ItemCreate, db: Session = Depends(get_db)
 ):
     return crud.create_user_item(db=db, item=item, user_id=user_id)
 

@@ -1,7 +1,10 @@
 import time
 
 from fastapi import FastAPI, Request
+from requests import Response
 from starlette.middleware.cors import CORSMiddleware
+
+from sql_alchemy.database import SessionLocal
 
 app = FastAPI()
 
@@ -44,3 +47,25 @@ app.add_middleware(
 )
 
 '''ENDS HERE'''
+
+'''WE CAN CREATE A MIDDLEWARE THAT INITIALIZES A DB SESSION'''
+
+
+@app.middleware("http")
+async def db_session_middleware(request: Request, call_next):
+    response = Response("Internal server error", status_code=500)
+    try:
+        request.state.db = SessionLocal()
+        response = await call_next(request)
+    finally:
+        request.state.db.close()
+        print(response)
+    return response
+
+
+# Dependency
+def get_db(request: Request):
+    return request.state.db
+
+
+'''ENDS HERE '''
