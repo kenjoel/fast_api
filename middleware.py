@@ -1,8 +1,11 @@
 import time
 
 from fastapi import FastAPI, Request
-from requests import Response
+from fastapi.openapi.models import Response
 from starlette.middleware.cors import CORSMiddleware
+from starlette.middleware.gzip import GZipMiddleware
+from starlette.middleware.httpsredirect import HTTPSRedirectMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from sql_alchemy.database import SessionLocal
 
@@ -69,3 +72,26 @@ def get_db(request: Request):
 
 
 '''ENDS HERE '''
+
+'''HTTPSREDIRECT MIDDLEWARE '''
+
+# Enforces that all incoming requests must either be https or ws
+# and will be redirected to secure scheme
+
+app.add_middleware(HTTPSRedirectMiddleware)
+
+
+@app.get("/https_wss")
+def enforce_security():
+    return
+
+
+'''TRUSTEDHOSTMIDDLEWARE'''
+# Enforces that all incoming requests have a correctly set Host header, in order to guard against HTTP Host Header
+# attacks.
+
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=["nyamnyam.com", "bumbum.com", "*.example.com"])
+
+'''GZipMiddleware'''
+# GZip responses for any request that includes "gzip" in the Accept-Encoding header.
+app.add_middleware(GZipMiddleware, minimum_size=100)
