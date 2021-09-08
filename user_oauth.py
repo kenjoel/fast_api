@@ -111,7 +111,7 @@ async def read_users_me(current_user: User = Depends(get_current_active_user)):
 
 # to get a string like this run:
 # openssl rand -hex 32
-SECRET_KEY = "dc7a5894e9f2024af2919a4fe08f04f7659a9b16ba99127df7b7001fa3b917aa"
+SECRET_KEY = "be013c4c0fd6539856e7151669181ffd31a00449256e3d0478f3415836d74bcd"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
@@ -179,8 +179,8 @@ async def get_current_user_and_decode_jtw(token: str = Depends(oauth2_scheme)):
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        print(token + " " +  SECRET_KEY + " " + ALGORITHM)
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        # print(token + " " +  SECRET_KEY + " " + ALGORITHM)
+        payload = jwt.decode(token, SECRET_KEY, algorithms=ALGORITHM)
         username: str = payload.get("sub")
         if username is None:
             print("could not get user from payload")
