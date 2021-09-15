@@ -19,6 +19,7 @@ async def override_dependency(q: Optional[str] = None):
 app.dependency_overrides[common_parameters] = override_dependency
 '''
 
+
 @app.get("/")
 async def read():
     return {"Hello": "World"}
@@ -29,6 +30,7 @@ def test_read():
     assert response.status_code == 200
     assert response.json() == {"Hello": "World"}
 
+
 @app.websocket_route("/ws")
 async def websocket(websocket: WebSocket):
     await websocket.accept()
@@ -37,18 +39,15 @@ async def websocket(websocket: WebSocket):
 
 
 def test_read_main():
-    client = TestClient(app)
     response = client.get("/")
     assert response.status_code == 200
     assert response.json() == {"msg": "Hello World"}
 
 
 def test_websocket():
-    client = TestClient(app)
     with client.websocket_connect("/ws") as websocket:
         data = websocket.receive_json()
         assert data == {"msg": "Hello WebSocket"}
-
 
 
 @app.on_event("startup")
@@ -63,10 +62,9 @@ async def read_items(item_id: str):
 
 
 def test_read_items():
-    with TestClient(app) as client:
-        response = client.get("/items/foo")
-        assert response.status_code == 200
-        assert response.json() == {"name": "Fighters"}
+    response = client.get("/items/foo")
+    assert response.status_code == 200
+    assert response.json() == {"name": "Fighters"}
 
 
 '''TEST A DATABASE'''
@@ -78,21 +76,18 @@ engine = create_engine(
 )
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-
 Base.metadata.create_all(bind=engine)
 
 
 def override_get_db():
+    db = TestingSessionLocal()
     try:
-        db = TestingSessionLocal()
         yield db
     finally:
         db.close()
 
 
 app.dependency_overrides[get_db] = override_get_db
-
-client = TestClient(app)
 
 
 def test_create_user():
